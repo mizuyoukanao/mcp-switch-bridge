@@ -46,7 +46,8 @@ def _get_camera_backend():
     """
     pl = platform.system()
     if pl == "Windows":
-        return "_camera (MSMF)"
+        return "OpenCV"
+        #return "_camera (MSMF)"
     elif pl == "Linux":
         return "_camera (V4L2)"
     elif pl == "Darwin":
@@ -64,8 +65,8 @@ def _get_list_cameras():
     return ret
 
 
-def _remap_m1_to_1_to_0_255(n: float):
-    return max(0, min(255, int(round((n + 1) * 127.5))))
+#def _remap_m1_to_1_to_0_255(n: float):
+#    return max(0, min(255, int(round((n + 1) * 127.5))))
 
 
 _ControlPad = (
@@ -80,8 +81,29 @@ _ControlPad = (
     | typing.Literal["neutral"]
 )
 
+def _remap_controlpad_to_stick(n: _ControlPad):
+    if n == "up":
+        return 4
+    elif n == "up_right":
+        return 6
+    elif n == "right":
+        return 2
+    elif n == "down_right":
+        return 0x0A
+    elif n == "down":
+        return 8
+    elif n == "down_left":
+        return 9
+    elif n == "left":
+        return 1
+    elif n == "up_left":
+        return 5
+    elif n == "neutral":
+        return 0
+    else:
+        return 0
 
-def _send_gamecube_controller_input(
+def _send_switch_controller_input(
     ser: serial.Serial,
     a: bool,
     b: bool,
@@ -89,20 +111,29 @@ def _send_gamecube_controller_input(
     y: bool,
     l: bool,  # noqa: E741
     r: bool,
-    z: bool,
-    start_pause: bool,
-    control_pad: _ControlPad,
-    control_stick: tuple[float, float],
-    c_stick: tuple[float, float],
-    reset: bool,
+    lclick: bool,
+    rclick: bool,
+    zl: bool,
+    zr: bool,
+    plus: bool,
+    minus: bool,
+    home: bool,
+    capture: bool,
+    dpad: _ControlPad,
+    l_stick: _ControlPad,
+    r_stick: _ControlPad,
 ):
     """
     https://github.com/u1f992/jiangtun/blob/main/lib/jiangtun-core/src/nxmc2.c
     """
-    byte0 = 0xAB
-    byte1 = (
-        z << 7
-        # | zl << 6
+    byte0 = 0xAA
+    byte1 = 0xAA
+    byte2 = 0xAA
+    byte3 = 0xAA
+    byte4 = 0xAA
+    byte5 = (
+        zr << 7
+        | zl << 6
         | r << 5
         | l << 4
         | x << 3
@@ -110,40 +141,26 @@ def _send_gamecube_controller_input(
         | b << 1
         | y
     )
-    byte2 = (
-        # capture << 5
-        reset << 4
-        # | r_click << 3
-        # | l_click << 2
-        | start_pause << 1
-        # | minus
+    byte6 = (
+        capture << 5
+        | home << 4
+        | rclick << 3
+        | lclick << 2
+        | plus << 1
+        | minus
     )
-    if control_pad == "up":
-        byte3 = 0
-    elif control_pad == "up_right":
-        byte3 = 1
-    elif control_pad == "right":
-        byte3 = 2
-    elif control_pad == "down_right":
-        byte3 = 3
-    elif control_pad == "down":
-        byte3 = 4
-    elif control_pad == "down_left":
-        byte3 = 5
-    elif control_pad == "left":
-        byte3 = 6
-    elif control_pad == "up_left":
-        byte3 = 7
-    elif control_pad == "neutral":
-        byte3 = 8
-    else:
-        byte3 = 8
-    byte4 = _remap_m1_to_1_to_0_255(control_stick[0])
-    byte5 = 255 - _remap_m1_to_1_to_0_255(control_stick[1])
-    byte6 = _remap_m1_to_1_to_0_255(c_stick[0])
-    byte7 = 255 - _remap_m1_to_1_to_0_255(c_stick[1])
+    try:
+        byte7 = _ControlPad.index(dpad)
+    except ValueError:
+        byte7 = 8
+    byte8 = _remap_controlpad_to_stick(l_stick)
+    byte9 = _remap_controlpad_to_stick(r_stick)
+    #byte4 = _remap_m1_to_1_to_0_255(control_stick[0])
+    #byte5 = 255 - _remap_m1_to_1_to_0_255(control_stick[1])
+    #byte6 = _remap_m1_to_1_to_0_255(c_stick[0])
+    #byte7 = 255 - _remap_m1_to_1_to_0_255(c_stick[1])
 
-    ser.write([byte0, byte1, byte2, byte3, byte4, byte5, byte6, byte7, 0, 0, 0])
+    ser.write([byte0, byte1, byte2, byte3, byte4, byte5, byte6, byte7, byte8, byte9, 0])
 
 
 def _process(
@@ -222,23 +239,28 @@ def main():
         process.start()
 
         @mcp.tool()
-        def send_gamecube_controller_input(
+        def send_switch_controller_input(
             a: bool = False,
             b: bool = False,
             x: bool = False,
             y: bool = False,
             l: bool = False,  # noqa: E741
             r: bool = False,
-            z: bool = False,
-            start_pause: bool = False,
-            control_pad: _ControlPad = "neutral",
-            control_stick: tuple[float, float] = (0, 0),
-            c_stick: tuple[float, float] = (0, 0),
-            reset: bool = False,
+            lclick: bool = False,
+            rclick: bool = False,
+            zl: bool = False,
+            zr: bool = False,
+            plus: bool = False,
+            minus: bool = False,
+            home: bool = False,
+            capture: bool = False,
+            dpad: _ControlPad = "neutral",
+            l_stick: _ControlPad = "neutral",
+            r_stick: _ControlPad = "neutral",
             hold_time: float = 0.0,
             wait_time: float = 0.0,
         ):
-            _send_gamecube_controller_input(
+            _send_switch_controller_input(
                 ser,
                 a,
                 b,
@@ -246,17 +268,28 @@ def main():
                 y,
                 l,
                 r,
-                z,
-                start_pause,
-                control_pad,
-                control_stick,
-                c_stick,
-                reset,
+                lclick,
+                rclick,
+                zl,
+                zr,
+                plus,
+                minus,
+                home,
+                capture,
+                dpad,
+                l_stick,
+                r_stick,
             )
             time.sleep(max(0, hold_time))
 
-            _send_gamecube_controller_input(
+            _send_switch_controller_input(
                 ser,
+                False,
+                False,
+                False,
+                False,
+                False,
+                False,
                 False,
                 False,
                 False,
@@ -266,14 +299,13 @@ def main():
                 False,
                 False,
                 "neutral",
-                (0, 0),
-                (0, 0),
-                False,
+                "neutral",
+                "neutral",
             )
             time.sleep(max(0, wait_time))
 
             if not ready.wait(timeout=1):
-                raise TimeoutError("send_gamecube_controller_input: ready.wait")
+                raise TimeoutError("send_switch_controller_input: ready.wait")
             ready.clear()
             try:
                 pil_image = PIL.Image.frombytes(
