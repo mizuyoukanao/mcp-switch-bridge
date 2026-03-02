@@ -1,4 +1,4 @@
-# mcp-gamecube-bridge
+# mcp-switch-bridge
 
 [MCP](https://modelcontextprotocol.io/) bridge of [NX Macro Controller](https://blog.bzl-web.com/entry/2020/01/20/165719). Grant Nintendo Switch1/2 operation functionality to clients.
 
