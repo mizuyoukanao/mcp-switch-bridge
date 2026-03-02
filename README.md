@@ -1,6 +1,6 @@
 # mcp-gamecube-bridge
 
-[MCP](https://modelcontextprotocol.io/) bridge of [Jiangtun](https://github.com/u1f992/jiangtun). Grant Nintendo GameCube operation functionality to clients.
+[MCP](https://modelcontextprotocol.io/) bridge of [NX Macro Controller](https://blog.bzl-web.com/entry/2020/01/20/165719). Grant Nintendo Switch1/2 operation functionality to clients.
 
 Bug: Python interpreter process remains after exiting Claude Desktop, use `ps` and `kill` to exit.
 
